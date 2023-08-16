@@ -160,19 +160,6 @@ void DynamicsSimulation::initObstacleInformation(){
     walker.cylinders_collision_sphere.list_size             = unsigned(cylinders_deque.size());
     walker.cylinders_collision_sphere.big_sphere_list_end   = walker.cylinders_collision_sphere.list_size;
 
-    //Spheres list of index initialization
-    for(unsigned i= 0 ; i < spheres_list->size();i++){
-        spheres_deque.push_back(i);
-
-        if(params.obstacle_permeability > 0.0){
-            (*spheres_list)[i].percolation = params.obstacle_permeability;
-        }
-    }
-
-    walker.spheres_collision_sphere .collision_list        = &spheres_deque;
-    walker.spheres_collision_sphere.list_size             = unsigned(spheres_deque.size());
-    walker.spheres_collision_sphere.big_sphere_list_end   = walker.spheres_collision_sphere.list_size;
-
     // Axons list of index initialization
     for (unsigned i = 0; i < axons_list->size(); i++)
     {
@@ -751,7 +738,7 @@ void DynamicsSimulation::getAnIntraCellularPosition(Vector3d& intra_pos, int &cy
     std::uniform_real_distribution<double> udist(0,1);
 
 
-    if(cylinders_list->size() <= 0 and plyObstacles_list->size() <= 0 and spheres_list->size() <=0)
+    if (cylinders_list->size() <= 0 and dyn_cylinders_list->size() <= 0 and axons_list->size() <= 0 and neurons_list->size() <= 0 and plyObstacles_list->size() <= 0 and dyn_spheres_list->size() <= 0)
     {
         SimErrno::error("Cannot initialize intra-axonal walkers within the given substrate.",cout);
         SimErrno::error("There's no defined intra-axonal compartment (missing obstacles?)",cout);
