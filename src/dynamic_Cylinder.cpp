@@ -1,57 +1,74 @@
-#include "sphere.h"
+#include "dynamic_Cylinder.h"
+#include "cylinder.h"
 #include "constants.h"
-#include <Eigen/Dense>
+#include "Eigen/Dense"
 #include <iostream>
+#include "simerrno.h"
 
 using namespace Eigen;
+using namespace std;
 
-int Sphere::count = 0;
 
-Sphere::Sphere(const Sphere &sph)
+Dynamic_Cylinder::Dynamic_Cylinder()
+{}
+
+Dynamic_Cylinder::~Dynamic_Cylinder()
+{}
+
+Dynamic_Cylinder::Dynamic_Cylinder(const Dynamic_Cylinder &cyl)
 {
-    center = sph.center;
-    radius = sph.radius;
-    id     = sph.id;
+    D = cyl.D;
+    Q = cyl.Q;
+    P = cyl.P;
+    radius = cyl.radius;
+    swell = cyl.swell;
+    volume_inc_perc = cyl.volume_inc_perc; 
+    id = cyl.id;
+    min_radius = cyl.min_radius;
 }
 
-bool Sphere::checkCollision(Walker &walker, Eigen::Vector3d &step, double &step_lenght, Collision &colision)
+bool Dynamic_Cylinder::checkCollision(Walker &walker, Eigen::Vector3d const&step, double const&step_lenght, Collision &colision)
 {
-
     //Origin of the ray
     Vector3d O;
     walker.getVoxelPosition(O);
-    Vector3d m = O - this->center;
+    Vector3d m = O - P;
 
-    // total distance
-    double distance_to_sphere = m.norm();
-    // collision distance
-    double d_ = distance_to_sphere - radius;
+    //minimum distance to the cylinder axis.
+    double distance_to_cilinder = (D.cross(-m)).norm();
+    double d_ = distance_to_cilinder - radius;
 
     //If the minimum distance from the walker to the cylinder is more than
     // the actual step size, we can discard this collision.
     if(d_> EPS_VAL){
-        if(d_ > step_lenght+barrier_tickness)
-        {
-            // TODO [ines] : check if collision needed here
-            colision.type = Collision::null;
+        if(d_ > step_lenght+barrier_tickness){
             return false;
         }
     }
 
-    double a = 1;
-    double b = m.dot(step);
-    double c = m.dot(m) - radius*radius;
-    if(b > EPS_VAL && c > EPS_VAL)
-    {
-        // TODO [ines] : check if collision needed here
-        colision.type = Collision::null;
-        return false;
+    double md = m.dot(D);
+    double nd = step.dot(D);
+    double nn = 1.0;
+    double mm = m.dot(m);
+    double a  = nn - nd*nd;
+    double k  = mm - radius*radius;
+    double c  = k  - md*md;
+
+
+    //Parallel trajectory // WARNING: Check this stuff
+    if(fabs(a) < 1e-5 && fabs(c)<barrier_tickness){
+        colision.type = Collision::near;
+        colision.rn = c;
+        colision.obstacle_ind = id;
+        return true;
     }
 
-
+    double mn = m.dot(step);
+    double b = mn - nd*md;
     double discr = b*b - a*c;
-    // no real roots
-    if(discr <= 0.0){
+
+    //No real roots
+    if(discr < 0.0){
         colision.type = Collision::null;
         return false;
     }
@@ -61,8 +78,7 @@ bool Sphere::checkCollision(Walker &walker, Eigen::Vector3d &step, double &step_
 
 }
 
-
-inline bool Sphere::handleCollition(Walker& walker, Collision &colision, Vector3d& step,double& a,double& b, double& c,double& discr,double& step_length){
+inline bool Dynamic_Cylinder::handleCollition(Walker& walker, Collision &colision, Vector3d const& step,double& a,double& b, double& c,double& discr,double const& step_length){
 
     double t1 = (-b - sqrt(discr))/a;
 
@@ -75,11 +91,10 @@ inline bool Sphere::handleCollition(Walker& walker, Collision &colision, Vector3
         return false;
     }
 
-
     //WARNING: Cuidar este patch
     // Implementa Percolacion
     if(percolation>0.0){
-        double _percolation_ (double(rand())/RAND_MAX);
+        double _percolation_ ((double)rand()/RAND_MAX);
 
         if( percolation - _percolation_ > EPS_VAL ){
             count_perc_crossings++;
@@ -109,11 +124,11 @@ inline bool Sphere::handleCollition(Walker& walker, Collision &colision, Vector3
     }
 
     colision.type = Collision::hit;
-    colision.obstacle_ind = -1;
+    colision.obstacle_ind = id;
 
     if(c<-1e-10){
         colision.col_location = Collision::inside;
-        walker.in_obj_index = -1;
+        walker.in_obj_index = id;
     }
     else if(c>1e-10){
         colision.col_location = Collision::outside;
@@ -123,41 +138,45 @@ inline bool Sphere::handleCollition(Walker& walker, Collision &colision, Vector3
     }
 
     colision.rn = c;
+
     colision.colision_point = walker.pos_v + colision.t*step;
 
-    //Normal point
-    Eigen::Vector3d normal = (colision.colision_point-this->center).normalized();
-    Eigen::Vector3d temp_step = step;
-    elasticBounceAgainsPlane(walker.pos_v,normal,colision.t,temp_step);
+    if (fabs(a) < EPS_VAL){
+        colision.col_location = Collision::on_edge;
+        colision.bounced_direction = -step;
+    }
+    else{
+        Eigen::Vector3d V = colision.colision_point - P;
+        double v = V.dot(D);
+        Eigen::Vector3d axis_point = P + v*D;
+        //Normal point
+        Eigen::Vector3d normal = (colision.colision_point-axis_point).normalized();
 
-    colision.bounced_direction = temp_step.normalized();
+        Eigen::Vector3d temp_step = step;
+        elasticBounceAgainsPlane(walker.pos_v,normal,colision.t,temp_step);
+
+        colision.bounced_direction = temp_step.normalized();
+
+    }
 
     return true;
 
 }
 
-double Sphere::minDistance(Walker const& w) const
+double Dynamic_Cylinder::minDistance(Walker const& w) const
 {
 
     //Origin of the ray
     Vector3d O;
     w.getVoxelPosition(O);
-    Vector3d m = O - this->center;
+    Vector3d m = O - P;
     // minimum distance to the cylinder axis.
-    double distance_to_sphere = m.norm();
+    double distance_to_cylinder = (D.cross(-m)).norm();
 
     //Minimum distance to the cylinders wall.
-    double d_ = (distance_to_sphere - radius);
+    double d_ = (distance_to_cylinder - radius);
    // return d_>0.0?d_:0.0;
     return d_;
 }
 
-double Sphere::minDistance(Vector3d const& pos) const
-{
 
-    // First check distance to soma
-    Vector3d m = pos - center;
-    double distance_to_sphere = m.norm() - radius;
-
-    return distance_to_sphere;
-}

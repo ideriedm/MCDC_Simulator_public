@@ -9,7 +9,6 @@
 #define PARAMETERS_H
 
 #include <vector>
-#include "Eigen/Core"
 #include "subdivision.h"
 #include <utility>
 
@@ -22,11 +21,13 @@
 class Parameters
 {
 public:
-
     unsigned num_walkers;                           /*!< N, number of walkers                                                       */
     unsigned num_steps;                             /*!< T, number of steps                                                         */
     double diffusivity;                             /*!< D, diffusivity constant                                                    */
     double sim_duration;                            /*!< simulation total time                                                      */
+    double dyn_perc;                                /*!< percentage of swelling cylinders                                           */
+    double step_lenght;
+    double volume_inc_perc;  
     bool write_traj;                                /*!< flag, write a traj file or not, binary format only                         */
     bool write_txt;                                 /*!< flag, writes DWI output signals in .txt if True                            */
     bool write_bin;                                 /*!< flag, writes the output signal in binary format (True by default)          */
@@ -38,12 +39,16 @@ public:
     std::string output_base_name;                   /*!< output files base name (path + sufix)                                      */
     std::string ini_walkers_file;                   /*!< initial walker position file (if any)                                      */
     unsigned ini_walkers_file_count;                /*!< number of walker positions initialize in the configuration file            */
-    std::string ini_walker_flag;                    /*!< where to initialize the walkers                                            */
+    std::string ini_walker_flag;                    /*!< where to initialize the walkers. Either "intra", "extra" or "unkown"       */
     std::string scheme_file;                        /*!< signal adquisition scheme file (if any)                                    */
     Eigen::Vector3d min_limits;                     /*!< voxel min limits (if any) (bottom left corner)                             */
     Eigen::Vector3d max_limits;                     /*!< voxel max limits (if any)                                                  */
 
     std::vector<std::string> cylinders_files;       /*!< file paths with a list of cilinders obstacles                              */
+    std::vector<std::string> dyn_cylinders_files;   /*!< file paths with a list of dynamic cilinders obstacles                              */
+    std::vector<std::string> dyn_spheres_files;     /*!< file paths with a list of dynamic spheres obstacles                              */
+    std::vector<std::string> axons_files;           /*!< file paths with a list of axons obstacles                              */
+    std::vector<std::string> neurons_files;         /*!< file paths with a list of neurons obstacles                              */
     std::vector<std::string> PLY_files;             /*!< file paths with PLY obstacle files                                         */
     std::vector<std::string> spheres_files;         /*!< file paths with spheres obstacle files                                     */
     std::vector<double> PLY_scales;                 /*!< Auxiliary vector to save PLY file scales                                   */
@@ -62,20 +67,26 @@ public:
     std::vector<unsigned> record_prop_times;        /*!< time indexes, used to save the mean propagator of the walkers at c. times  */
 
     bool   hex_cyl_packing;                         /*!< flag, true if an haxagonal packing should be used                          */
+    bool   hex_dyn_cyl_packing;                         /*!< flag, true if an haxagonal packing should be used                          */
     bool   hex_sphere_packing;                      /*!< flag, true if an haxagonal packing OF SPHERES should be used               */
     double hex_packing_radius;                      /*!< float, constant radius for the cylinders                                   */
     double hex_packing_separation;                  /*!< float, separation distance betwen cylinders (separation > 2*radius)        */
     double hex_packing_icvf;                        /*!< float, ICVF computed or passed as parameter                                */
 
     bool        gamma_cyl_packing;                  /*!< flag, true if a gamma distribution of cylinders will be initialized        */
+    bool        gamma_dyn_cyl_packing;                  /*!< flag, true if a gamma distribution of cylinders will be initialized        */
     bool        gamma_sph_packing;                  /*!< flag, true if a gamma distribution of  SPHERES will be initialized         */
+    bool        gamma_ax_packing;                  /*!< flag, true if a gamma distribution of  axons will be initialized         */
     bool        gamma_output_conf;
+    bool        neuron_packing;                      /*< flag, true if substrate filled with neurons*/
     double      gamma_packing_alpha;
     double      gamma_packing_beta;
     double      gamma_icvf;
     double      gamma_output_configuration;
     unsigned    gamma_num_obstacles;
-    float       min_obstacle_radii;                 /*!< Minimum radii (in um) to be sampled                                        */
+    double       min_obstacle_radii;                 /*!< Minimum radii (in um) to be sampled                                        */
+    double c2;                                      /*!< for Orientation Density Function of axons (instead of kappa)                                                   */
+    bool tortuous = false;
 
     bool subdivision_flag           = false;        /*!< flag to check if we have several voxel subdivision to compute the signal   */
     unsigned number_subdivisions    = 0;            /*!< saves the number of subdivisions for an initialzied voxel (needed)         */
@@ -89,9 +100,8 @@ public:
     bool log_phase_shift = false;                   /*!< flag, true to save the final phase shift distribution                      */
     bool log_opp         = false;                   /*!< flag, true to save one per process output                                  */
     bool discard_stucks  = true;                    /*!< flag, true to discard posible stuck particles (max bouncing reached)       */
-    bool discard_illegals = true;                   /*!< flag, true to discard possible illegal  crossings, Trump by default.       */
-
-    bool log_propagator = false;                    /*!< flag, true saves the propagator for a given set of directions and times    */
+    bool discard_illegals= true;                   /*!< flag, true to discard possible illegal  crossings, Trump by default.       */
+    bool log_propagator  = false;                    /*!< flag, true saves the propagator for a given set of directions and times    */
 
     Eigen::Vector3d min_sampling_area;              /*!< Min defining point to delimiter the uniform sampling of walkers            */
     Eigen::Vector3d max_sampling_area;              /*!< Max defining point to delimiter the uniform sampling of walkers            */

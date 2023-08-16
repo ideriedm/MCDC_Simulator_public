@@ -7,28 +7,29 @@ using namespace std;
 
 Sentinel::Sentinel()
 {
-    error = none;
+    error           = none;
 
-    bouncings = 0;
+    bouncings       = 0;
 
-    obstacle_id = 0;
+    obstacle_id     = 0;
 
-    stuck_count = 0;
+    stuck_count     = 0;
 
-    rejected_count = 0;
+    rejected_count  = 0;
 
-    illegal_count = 0;
+    illegal_count   = 0;
 
     deport_illegals = true; //Trump mode on.
-    discard_stucks = true;
+    
+    discard_stucks  = true;
 
-    rejected_step = false;
+    rejected_step   = false;
 }
 
 void Sentinel::clear(){
     error = none;
 
-    bouncings = 0;
+    bouncings  = 0;
 
     obstacle_id = 0;
 }
@@ -67,7 +68,16 @@ bool Sentinel::checkErrors(Walker &walker, const Parameters &params, bool noPLY,
 
     if( (walker.location != Walker::unknown) && (params.obstacle_permeability <= 0.0) && deport_illegals == true ){
         if(walker.initial_location != walker.location){
-            setCrossingError(uint(walker.in_obj_index));
+            if (walker.in_obj_index >= 0)
+                setCrossingError(uint(walker.in_obj_index));
+            else if (walker.in_ax_index >= 0)
+                setCrossingError(uint(walker.in_ax_index));
+            else if (walker.in_neuron_index >= 0)
+                setCrossingError(uint(walker.in_neuron_index));
+            else if (walker.in_ply_index >= 0)
+                setCrossingError(uint(walker.in_ply_index));
+            else 
+                setCrossingError(uint(walker.in_cyl_index));   
             illegal_count++;
             throw(this->error);
         }

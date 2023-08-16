@@ -9,15 +9,24 @@
 
 Walker::Walker()
 {
-    pos_r = pos_v.setZero(3,1);
-    index = 0;
-    status = free;
+    pos_r       = pos_v.setZero(3,1);
+    index       = 0;
+    status      = free;
     steps_count = 0;
     initial_location = location = unknown;
     intra_extra_consensus = intra_coll_count = extra_coll_count = rejection_count = steps_count = 0;
-    steps_per_second = 0;
-    in_ply_index = -1;
-    in_obj_index =-1;
+    steps_per_second      = 0;
+    in_ply_index          = -1;
+    in_obj_index          = -1;
+    in_ax_index           = -1;
+    in_neuron_index       = -1;
+    in_soma_index         = -1;
+    in_dendrite_index     = -1;
+    in_subbranch_index    = -1;
+    in_sph_index.clear();
+    in_cyl_index = -1;
+    last_collision.clear();
+    ini_pos = Eigen::Vector3d(-1, -1, -1);
 }
 
 Walker::Walker(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax)
@@ -36,13 +45,20 @@ Walker::Walker(double xmin, double xmax, double ymin, double ymax, double zmin, 
 
     steps_count     = 0;
     rejection_count = 0;
-    status = free;
-    index = 0;
+    status          = free;
+    index           = 0;
     initial_location  = location = unknown;
     intra_extra_consensus = intra_coll_count = extra_coll_count =0;
-    steps_per_second = 0;
-    in_ply_index = -1;
-    in_obj_index = -1;
+    steps_per_second      = 0;
+    in_ply_index          = -1;
+    in_obj_index          = -1;
+    in_ax_index           = -1;
+    in_neuron_index       = -1;
+    in_soma_index         = -1;
+    in_dendrite_index     = -1;
+    in_subbranch_index    = -1;
+    in_sph_index.clear();
+    last_collision.clear();
 }
 
 void Walker::getRealPosition(double &x_, double &y_, double &z_) const
@@ -148,7 +164,15 @@ void Walker::setIndex(unsigned int& _index)
 {
     index = _index;
 }
+void Walker::getLastCollision(std::vector<int> &col_obj) const
+{
+    col_obj = last_collision;
+}
 
+void Walker::clearLastCollision()
+{
+    last_collision.clear();
+}
 void Walker::setRealPosLog(const Eigen::Vector3d &pos, unsigned t)
 {
     this->pos_r_log(0,t)=pos(0);

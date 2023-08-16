@@ -31,9 +31,12 @@ public:
     std::vector<std::thread> sim_threads;        /*!< Number of threads (instances and processors) to be used            */
     std::vector <PLYObstacle> plyObstacles_list; /*!< vector with all the instances of PLYObstacles                      */
     std::vector <Cylinder> cylinders_list;       /*!< vector with all the instances of cylinders                         */
+    std::vector <Dynamic_Cylinder> dyn_cylinders_list; /*!< vector with all the instances of dynamic cylinders                         */
     std::vector <Sphere> spheres_list;          /*!< vector with all the instances of cylinders                         */
-
+    std::vector <Dynamic_Sphere> dyn_spheres_list;  /*!< vector with all the instances of dynamic spheres                         */
+    std::vector <Axon> axons_list;                  /*!< vector with all the instances of axons                         */
     std::vector<Eigen::Vector3f> total_ini_walker_pos; /*!< Number of threads (instances and processors) to be used      */
+    std::vector <Neuron> neurons_list;          /*!< vector with all the instances of axons                         */
 
     /*!
      *  \param config_file .conf file name with the full set of experiments parameters.
@@ -87,6 +90,11 @@ private:
      *  \brief Used to initialize the hexagonal packing
     */
     void addObstacleConfigurations();
+    /**
+     *  Compute the intracompartment volume fraction (ICVF) of the substrate. 
+     *  @return ICVF double.
+    */
+    std::tuple<double, double, double> computeICVF(double const& min_distance_from_border) const;
 
 };
 

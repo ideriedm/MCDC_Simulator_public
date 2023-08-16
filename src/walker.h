@@ -54,11 +54,31 @@ public:
 
     int in_ply_index;                                               /*!< Auxiliar index to save if the walker was inside a convex ply object    */
 
-    int in_sph_index;                                               /*!< Auxiliar index to save if the walker was inside a sphere               */
+    std::vector<int> in_sph_index;                                                /*!< Auxiliar index to save if the walker was inside a sphere               */
+    
+    int in_ax_index;                                                 /*!< Auxiliar index to save in which Axon the walker was                    */
 
-    ObstacleCollisionSphere cylinders_collision_sphere;             /*!< Collision sphere for collition against cylidners                       */
+    int in_cyl_index;                                                /*!< Auxiliar index to save if the walker was inside a cylinder              */
+    
+    int in_neuron_index;                                             /*!< Auxiliar index to save in which Neuron the walker                       */
+    
+    int in_soma_index;                                               /*!< Auxiliar index to save if walker is in the soma of Neuron               */
+    
+    int in_dendrite_index;                                           /*!< Auxiliar index to save in which dendrite of the Neuron the walker is    */
+    
+    int in_subbranch_index;                                          /*!< Auxiliar index to save in which subbranch of the dendrite of the Neuron the walker is    */
+    
+    ObstacleCollisionSphere dyn_cylinders_collision_sphere;         /*!< Collision sphere for collition against dynamic cylidners               */
+    
+    ObstacleCollisionSphere cylinders_collision_sphere;         /*!< Collision sphere for collition against cylidners               */
 
-    ObstacleCollisionSphere spheres_collision_sphere;               /*!< Collision sphere for collition against cylidners                       */
+    ObstacleCollisionSphere spheres_collision_sphere;               /*!< Collision sphere for collition against spheres                       */
+
+    ObstacleCollisionSphere dyn_spheres_collision_sphere;               /*!< Collision sphere for collition against dynamic spheres                       */
+    
+    ObstacleCollisionSphere axons_collision_sphere;               /*!< Collision sphere for collition against axons                     */
+    
+    ObstacleCollisionSphere neurons_collision_sphere;               /*!< Collision sphere for collition against neurons                     */
 
     PLYCollisionSphere ply_collision_sphere;                        /*!< Collision sphere for collition against PLY meshes                      */
 
@@ -81,6 +101,8 @@ public:
     unsigned int rejection_count;                                   /*!< counter of the rejected directions in a single time-step*/
 
     float steps_per_second;                                         /*!< Particles steps per second speeed.*/
+
+    std::vector<int> last_collision;                                 /*!< Axon id and sphere id of last collision.*/
 
     //! Default constructor.
     /*! Set all variables to cero.*/
@@ -111,7 +133,9 @@ public:
     void  getInitialPosition(Eigen::Vector3d&) const;
     void  getNextDirection(Eigen::Vector3d&) const;
     unsigned int getIndex() const;
-
+    void getLastCollision(std::vector<int> &col_obj) const;
+    void clearLastCollision();
+    
     // Set methods
     void  setRealPosition(const double &, const double &,const double &);
     void  setRealPosition(const Eigen::Vector3d&);

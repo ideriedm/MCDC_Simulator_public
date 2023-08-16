@@ -4,11 +4,16 @@
 #include "constants.h"
 #include "simerrno.h"
 #include "cylindergammadistribution.h"
+#include "dyncylindergammadistribution.h"
 #include "spheregammadistribution.h"
+#include "axongammadistribution.h"
+#include "neurondistribution.h"
+#include <chrono>
+using namespace std::chrono;
 
 //* Auxiliare method to split words in a line using the spaces*//
 template<typename Out>
-void split_(const std::string &s, char delim, Out result) {
+void _split_(const std::string &s, char delim, Out result) {
     std::stringstream ss;
     ss.str(s);
     std::string item;
@@ -18,9 +23,9 @@ void split_(const std::string &s, char delim, Out result) {
 }
 
 
-std::vector<std::string> split(const std::string &s, char delim) {
+std::vector<std::string> _split_(const std::string &s, char delim) {
     std::vector<std::string> elems;
-    split_(s, delim, std::back_inserter(elems));
+    _split_(s, delim, std::back_inserter(elems));
     return elems;
 }
 
@@ -49,7 +54,7 @@ ParallelMCSimulation::ParallelMCSimulation(std::string config_file)
 ParallelMCSimulation::ParallelMCSimulation(Parameters &params)
 {
     this->params = params;
-    mean_second_passed = 0;
+    mean_second_passed  = 0;
     total_sim_particles = 0;
     SimErrno::checkSimulationParameters(params);
     this->params = params;
@@ -60,9 +65,8 @@ ParallelMCSimulation::ParallelMCSimulation(Parameters &params)
 
 ParallelMCSimulation::~ParallelMCSimulation()
 {
-    for(unsigned i = 0; i < simulations.size(); i++){
+    for(unsigned i = 0; i < simulations.size(); i++)
         delete simulations[i];
-    }
 }
 
 void ParallelMCSimulation::startSimulation()
@@ -70,15 +74,14 @@ void ParallelMCSimulation::startSimulation()
     cout<<setfill('-');
     cout << SH_FG_PURPLE << "/********************   MC/DC Simulation START:  *************************/" << SH_DEFAULT << "\n";
 
-    for(unsigned int i =0; i < simulations.size(); i++){
+    for(unsigned int i =0; i < simulations.size(); i++)
         sim_threads.push_back(std::thread(&MCSimulation::startSimulation,(simulations[i])));
-    }
-
-    for(unsigned i =0; i < simulations.size(); i++){
+    
+    for(unsigned i =0; i < simulations.size(); i++)
         sim_threads[i].join();
-    }
-
-    for(unsigned i =0; i < simulations.size(); i++){
+    
+    for(unsigned i =0; i < simulations.size(); i++)
+    {
         mean_second_passed  += simulations[i]->dynamicsEngine->second_passed/double(simulations.size());
         total_sim_particles += simulations[i]->dynamicsEngine->num_simulated_walkers;
     }
@@ -100,14 +103,17 @@ void ParallelMCSimulation::startSimulation()
     SimErrno::info("Number of particles labeled as stuck: "        + to_string(stuck_count)  ,out,false);
     SimErrno::info("Number of particles eliminated due crossings: "+ to_string(illegal_count),out,false);
 
-    if(params.max_simulation_time > 0){
+    if(params.max_simulation_time > 0)
+    {
         SimErrno::info("Number of simulated particles: "+ to_string(total_sim_particles),out,false);
         SimErrno::info("Mean simulation speed: "+ to_string( unsigned(params.num_steps*total_sim_particles/mean_second_passed)) + " steps/second",out,false);
     }
-    else{
+    else
+    {
         SimErrno::info("Mean simulation speed: "+ to_string( unsigned(params.num_steps*params.num_walkers/mean_second_passed)) + " steps/second",out,false);
     }
-    if(params.voxels_list.size()>0){
+    if(params.voxels_list.size()>0)
+    {
         string message = "Voxel limits:";
         SimErrno::info(message,out,false);
 
@@ -120,7 +126,8 @@ void ParallelMCSimulation::startSimulation()
                 " " << params.voxels_list[0].second[2] << " )\n";
     }
 
-    if(params.custom_sampling_area){
+    if(params.custom_sampling_area)
+    {
         out << std::fixed;
         string message="Custom sampled area (mm):";
         SimErrno::info(message,out,false);
@@ -134,7 +141,8 @@ void ParallelMCSimulation::startSimulation()
     }
 
 
-    if((params.custom_sampling_area or params.voxels_list.size()>0) and (params.computeVolume)){
+    if((params.custom_sampling_area or params.voxels_list.size()>0) and (params.computeVolume))
+    {
         string message="Estimated Intra-axonal volume from sampling (mm^3):";
         out << std::scientific;
         SimErrno::info(message,out,false);
@@ -143,7 +151,8 @@ void ParallelMCSimulation::startSimulation()
     }
 
 
-    if(params.hex_cyl_packing == true){
+    if(params.hex_cyl_packing == true)
+    {
         SimErrno::info("Hex. packing radius: "+ to_string( params.hex_packing_radius)    ,out,false);
         SimErrno::info("Hex. packing separation: " +  to_string( params.hex_packing_separation) ,out,false);
         SimErrno::info("Hex. packing ICVF: " +  to_string( params.hex_packing_icvf) ,out,false);
@@ -159,8 +168,6 @@ void ParallelMCSimulation::initializeUnitSimulations()
     specialInitializations();
 
     // The number of walker N devided between all the processes
-
-
     unsigned N_per_sim = params.num_walkers/params.num_proc;
 
     for(unsigned i = 0; i < params.num_proc-1; i++){
@@ -172,10 +179,14 @@ void ParallelMCSimulation::initializeUnitSimulations()
 
 
         MCSimulation* simulation_ = new MCSimulation(params_temp);
-        simulation_->plyObstacles_list = &this->plyObstacles_list;
-        simulation_->cylinders_list = &this->cylinders_list;
-        simulation_->sphere_list = &this->spheres_list;
+         simulation_->plyObstacles_list = &this->plyObstacles_list;
+        simulation_->cylinder_list      = &this->cylinders_list;
+        simulation_->dyn_cylinder_list  = &this->dyn_cylinders_list;
+        simulation_->dyn_sphere_list    = &this->dyn_spheres_list;
+        simulation_->axon_list          = &this->axons_list;
+        simulation_->neuron_list        = &this->neurons_list;
         simulation_->dynamicsEngine->print_expected_time = 0;
+        
         simulations.push_back(simulation_);
 
         if(params.verbatim)
@@ -185,16 +196,19 @@ void ParallelMCSimulation::initializeUnitSimulations()
     //We set thet remaining walkers so it sums up the desired total
 
     //Parameters for each simulation simulation
-    Parameters params_temp = params;
+    Parameters params_temp  = params;
     params_temp.num_walkers = params.num_walkers - N_per_sim *(params.num_proc-1);
     params_temp.output_base_name+= "_"+std::to_string(params.num_proc-1);
 
 
     MCSimulation* simulation_ = new MCSimulation(params_temp);
-    //simulation_->dynamicsEngine->print_expected_time = 0;
     simulation_->plyObstacles_list = &this->plyObstacles_list;
-    simulation_->cylinders_list = &this->cylinders_list;
-    simulation_->sphere_list    = &this->spheres_list;
+    simulation_->cylinder_list      = &this->cylinders_list;
+    simulation_->dyn_cylinder_list  = &this->dyn_cylinders_list;
+    simulation_->dyn_sphere_list    = &this->dyn_spheres_list;
+    simulation_->axon_list          = &this->axons_list;
+    simulation_->neuron_list        = &this->neurons_list;
+    
     simulations.push_back(simulation_);
 
     if(params.verbatim)
@@ -662,7 +676,7 @@ void ParallelMCSimulation::addObstaclesFromFiles()
         {
             if(first) {first-=1;continue;}
 
-            std::vector<std::string> jkr = split(line,' ');
+            std::vector<std::string> jkr = _split_(line,' ');
             if (jkr.size() != 7){
                 z_flag = true;
                 //std::cout << "\033[1;33m[Warning]\033[0m Cylinder orientation was set towards the Z direction by default" << std::endl;
@@ -695,6 +709,343 @@ void ParallelMCSimulation::addObstaclesFromFiles()
         }
     }
 
+    for(unsigned i = 0; i < params.dyn_cylinders_files.size(); i++){
+
+        bool z_flag = false;
+        std::ifstream in(params.dyn_cylinders_files[i]);
+
+        if(!in){
+            std::cout <<  "[ERROR] Unable to open:" << params.dyn_cylinders_files[i] << std::endl;
+            return;
+        }
+        unsigned enum_ = 1;
+
+        bool first=true;
+
+        for( std::string line; getline( in, line ); )
+        {
+            if(first) {
+                first-=1;
+                enum_ += 1;
+                continue;
+                }
+            if (enum_ <=6){
+                enum_ += 1;
+                continue;
+            }
+
+            std::vector<std::string> jkr = _split_(line,' ');
+            if (jkr.size() != 8){
+                z_flag = true;
+                std::cout << "\033[1;33m[Warning]\033[0m Cylinder orientation was set towards the Z direction by default" << std::endl;
+            }
+            break;
+        }
+        in.close();
+
+        in.open(params.dyn_cylinders_files[i]);
+
+        if(z_flag){
+            double x,y,z,r;
+            double scale;
+            bool s;
+            double volume_inc_perc, dyn_perc, icvf;
+            double max_limits, min_limits;
+
+            in >> scale;
+            in >> volume_inc_perc;
+            in >> dyn_perc;
+            in >> icvf;
+            in >> min_limits;
+            in >> max_limits;
+            int n = 0;
+            while (in >> x >> y >> z >> r >> s)
+            {
+                dyn_cylinders_list.push_back(Dynamic_Cylinder(Eigen::Vector3d(x,y,z),Eigen::Vector3d(x,y,z+1.0),r,volume_inc_perc,s, n, scale));
+                n += 1;
+            }
+            params.volume_inc_perc = volume_inc_perc;
+            params.gamma_icvf = icvf;
+            params.dyn_perc = dyn_perc;
+            params.max_limits = Eigen::Vector3d(max_limits,max_limits,max_limits);
+            params.min_limits = Eigen::Vector3d(min_limits,min_limits,min_limits);
+
+
+
+            in.close();
+        }
+        else{
+            double x,y,z,ox,oy,oz,r;
+            double scale;
+            bool s;
+            double volume_inc_perc, dyn_perc, icvf;
+            double max_limits, min_limits;
+
+            in >> scale;
+            in >> volume_inc_perc;
+            in >> dyn_perc;
+            in >> icvf;
+            in >> min_limits;
+            in >> max_limits;
+            int n = 0;
+            while (in >> x >> y >> z >> ox >> oy >> oz >> r >> s)
+            {
+                dyn_cylinders_list.push_back(Dynamic_Cylinder(Eigen::Vector3d(x,y,z),Eigen::Vector3d(ox,oy,oz),r,volume_inc_perc, s, n, scale));
+                n +=1;
+            }
+            params.volume_inc_perc = volume_inc_perc;
+            params.gamma_icvf = icvf;
+            params.dyn_perc = dyn_perc;
+            params.max_limits = Eigen::Vector3d(max_limits,max_limits,max_limits);
+            params.min_limits = Eigen::Vector3d(min_limits,min_limits,min_limits);
+
+
+            in.close();
+        }
+    }
+
+    for(unsigned i = 0; i < params.axons_files.size(); i++){
+
+        std::ifstream in(params.axons_files[i]);
+
+        if(!in){
+            std::cout <<  "[ERROR] Unable to open:" << params.axons_files[i] << std::endl;
+            return;
+        }
+        unsigned enum_ = 1;
+
+        bool first=true;
+
+        for( std::string line; getline( in, line ); )
+        {
+            if(first) {
+                first-=1;
+                enum_ += 1;
+                continue;
+                }
+            if (enum_ == 2 || enum_ == 3 || enum_ == 4 || enum_ == 5 || enum_ == 6){
+                enum_ += 1;
+                continue;
+            }
+
+            std::vector<std::string> jkr = _split_(line,' ');
+            if (jkr.size() != 5 && jkr.size() != 2){
+                std::cout << jkr.size() <<  " elements per line" << std::endl;
+                std::cout << "wrong number of elements per line in file" << std::endl;
+            }
+            break;
+        }
+        in.close();
+
+        in.open(params.axons_files[i]);
+
+        double x,y,z,r;
+        double scale;
+        bool s;
+        double volume_inc_perc, dyn_perc, icvf;
+        double max_limits, min_limits;
+
+        in >> scale;
+        in >> volume_inc_perc;
+        in >> dyn_perc;
+        in >> icvf;
+        in >> min_limits;
+        in >> max_limits;
+
+        std::vector<Dynamic_Sphere> spheres_ ;
+        Dynamic_Sphere sphere_;
+        int sph_id = 0;
+        for( std::string line; getline( in, line ); ){
+            
+            std::vector<std::string> jkr = _split_(line,' ');
+            int ax_id = 0;
+            if(jkr.size() == 5){
+                x = stod(jkr[0]);
+                y = stod(jkr[1]);
+                z = stod(jkr[2]);
+                r = stod(jkr[3]);
+                s = stod(jkr[4]);
+                sphere_ = Dynamic_Sphere(Eigen::Vector3d(x,y,z), r, volume_inc_perc, s, ax_id, scale, sph_id);
+                spheres_.push_back(sphere_);
+                dyn_spheres_list.push_back(sphere_);
+                sph_id += 1; 
+                //cout << "adding sphere,  min radius :" << sphere_.min_radius <<", max radius :" << sphere_.max_radius <<", radius :" << sphere_.radius << ", swell : " << sphere_.swell << endl;
+            
+            }
+
+            if(jkr.size() == 3 ){
+                sph_id = 0;
+                ax_id = stod(jkr[1]);
+                Eigen::Vector3d begin = {min_limits, min_limits, min_limits};
+                Eigen::Vector3d end = {max_limits, max_limits, max_limits};
+                Axon ax (ax_id, r, begin, end,volume_inc_perc, s, scale);
+                ax.set_spheres(spheres_);
+                axons_list.push_back(ax);
+                spheres_.clear();
+                //cout << "adding axon, id :" << ax.id <<" , begin x:" << ax.begin[0] << ", end x :" << ax.end[0] <<", min radius :" << ax.min_radius <<", max radius :" << ax.max_radius <<", radius :" << ax.radius << ", swell : " << ax.swell << endl;
+            }
+        }
+
+
+        params.max_limits = Eigen::Vector3d(max_limits,max_limits,max_limits);
+        params.min_limits = Eigen::Vector3d(min_limits,min_limits,min_limits);
+        params.volume_inc_perc = volume_inc_perc;
+        params.gamma_icvf = icvf;
+        params.dyn_perc = dyn_perc;
+
+        in.close();
+    }
+
+
+    // Read neurons from file
+    for(unsigned i = 0; i < params.neurons_files.size(); i++){
+
+        std::ifstream in(params.neurons_files[i]);
+
+        if(!in){
+            std::cout <<  "[ERROR] Unable to open:" << params.neurons_files[i] << std::endl;
+            return;
+        }
+        unsigned enum_ = 1;
+
+        bool first = true;
+
+        for( std::string line; getline( in, line ); )
+        {
+            if(first) {
+                first  = false;
+                enum_ += 1;
+                continue;
+                }
+            if (enum_ == 2 || enum_ == 3 || enum_ == 4 || enum_ == 5 || enum_ == 6){
+                enum_ += 1;
+                continue;
+            }
+
+            std::vector<std::string> jkr = _split_(line,' ');
+            if (jkr.size() != 5 && jkr.size() != 2){
+                std::cout << jkr.size() <<  " elements per line" << std::endl;
+                std::cout << "wrong number of elements per line in file" << std::endl;
+            }
+            break;
+        }
+        in.close();
+
+        in.open(params.neurons_files[i]);
+
+        double x,y,z,r;
+        double scale;
+        bool s;
+        double volume_inc_perc, dyn_perc, icvf;
+        double max_limits, min_limits;
+
+        in >> scale;
+        in >> volume_inc_perc;
+        in >> dyn_perc;
+        in >> icvf;
+        in >> min_limits;
+        in >> max_limits;
+
+        std::vector<Dynamic_Sphere> spheres_ ;
+        std::vector<Axon> subbranches_ ;
+        std::vector<Dendrite> dendrites_ ;
+        Dynamic_Sphere sphere_;
+        Dynamic_Sphere soma;
+        string part;
+        int id;
+
+        for( std::string line; getline( in, line ); ){
+            
+            std::vector<std::string> jkr = _split_(line,' ');
+            int ax_id = 0;
+            if(jkr.size() == 5){
+                x = stod(jkr[0]);
+                y = stod(jkr[1]);
+                z = stod(jkr[2]);
+                r = stod(jkr[3]);
+                s = stod(jkr[4]);
+                sphere_ = Dynamic_Sphere(Eigen::Vector3d(x,y,z), r, volume_inc_perc, s, ax_id, id, scale);
+                if(spheres_.size() > 0)
+                {
+                    sphere_.add_neighbor(new Dynamic_Sphere(spheres_[spheres_.size() - 1]));
+                    spheres_[spheres_.size() - 1].add_neighbor(new Dynamic_Sphere(sphere_));
+                }
+                
+                spheres_.push_back(sphere_);
+        
+                if(subbranches_.size() > 0 && spheres_.size() == 0)
+                {
+                    sphere_.add_neighbor(new Dynamic_Sphere(subbranches_[0].spheres[0]));
+                    subbranches_[0].spheres[0].add_neighbor(new Dynamic_Sphere(sphere_));
+                    
+                }
+                else if (spheres_.size() == 0)
+                {
+                    soma.add_neighbor(new Dynamic_Sphere(sphere_));
+                    sphere_.add_neighbor(new Dynamic_Sphere(soma));
+                }
+                cout << "adding sphere,  min radius :" << sphere_.min_radius << ", radius :" << sphere_.radius << ", swell : " << sphere_.swell << endl;
+            
+            }
+            if(jkr.size() == 2){
+                part = jkr[0];
+                id = stod(jkr[1]);
+
+                // If flag "soma", create a soma
+                if( part.find("Soma") != std::string::npos && spheres_.size() == 1)
+                {
+                    soma = spheres_[0];
+                    spheres_.clear();
+                }
+                // If Segment, create it from spheres_ and store it into axons_
+                else if( part.find("Segment") != std::string::npos && spheres_.size() > 0)
+                {
+                    Eigen::Vector3d begin = {min_limits, min_limits, min_limits};
+                    Eigen::Vector3d end   = {max_limits, max_limits, max_limits};
+                    Axon subbranch (id, r, begin, end, volume_inc_perc, s, scale);
+                    subbranch.set_spheres(spheres_);
+                    spheres_.clear();
+                    subbranches_.push_back(subbranch);
+                    cout << "adding segment "  << endl;
+                    //TODO [ines] : add proximal & distal branching reading
+                }
+                // If dendrite, create it from spheres_ and store it into axons_
+                else if( part.find("Dendrite") != std::string::npos && subbranches_.size() > 0)
+                {
+                    Dendrite dendrite;
+                    dendrite.set_dendrite(subbranches_);
+                    subbranches_.clear();
+                    dendrites_.push_back(dendrite);
+                    cout << "adding dendrite : "  << id << endl;
+                }
+                // If neuron, create it from soma and axons
+                else if( part.find("Neuron") != std::string::npos)
+                {
+                    Neuron neuron(dendrites_, soma);
+                    neurons_list.push_back(neuron);
+                    dendrites_.clear();
+                    // TODO : why nb_dendrites not printed ? [ines]
+                    cout << "adding neuron: "  << id << ", nb_dendrites: " << neuron.nb_dendrites << endl;
+                }
+            }
+        }
+
+        params.max_limits = Eigen::Vector3d(max_limits, max_limits, max_limits);
+        params.min_limits = Eigen::Vector3d(min_limits, min_limits, min_limits);
+        params.volume_inc_perc = volume_inc_perc;
+        params.gamma_icvf      = icvf;
+        params.dyn_perc        = dyn_perc;
+
+        in.close();
+
+
+        // double somaFraction, dendritesFraction;
+        // double min_distance_from_border = barrier_tickness + 5e-3 + params.sim_duration / params.num_steps / 1000;
+        // std::cout << params.sim_duration << params.num_steps << std::endl;
+        // tie(icvf, somaFraction, dendritesFraction) = computeICVF(min_distance_from_border);
+        // std::cout << icvf << somaFraction << dendritesFraction << std::endl;
+    }
+    
     for(unsigned i = 0; i < params.spheres_files.size(); i++){
         std::ifstream in(params.spheres_files[i]);
         if(!in){
@@ -720,6 +1071,44 @@ void ParallelMCSimulation::addObstaclesFromFiles()
         }
         in.close();
     }
+
+    // Add voxel
+    if(params.voxels_list.size()<=0){
+        pair<Eigen::Vector3d,Eigen::Vector3d> voxel_(params.min_limits,params.max_limits);
+        params.voxels_list.push_back(voxel_);
+    }
+    else{
+        params.voxels_list[0].first =  params.min_limits;
+        params.voxels_list[0].second = params.max_limits;
+    }
+}
+
+tuple<double, double, double> ParallelMCSimulation::computeICVF(double const& min_distance_from_border) const
+{
+
+    if (neurons_list.size() == 0)
+        return make_tuple(0, 0, 0);
+
+    double VolumeVoxel = (params.max_limits[0] - params.min_limits[0] - min_distance_from_border) * (params.max_limits[1] - params.min_limits[1] - min_distance_from_border) * (params.max_limits[2] - params.min_limits[2] - min_distance_from_border);
+    double VolumeSoma = 0;
+    double VolumeDendrites = 0;
+   
+    for (size_t i = 0; i < neurons_list.size(); i++)
+    {
+        // Calculate the volume of the soma
+        VolumeSoma += 4.0 / 3.0 * M_PI * pow(neurons_list[i].soma.radius, 3);
+
+        // Calculate the cylindrical volume of each dendrite
+        for (uint8_t j = 0; j < neurons_list[i].nb_dendrites; j++)
+        {
+            VolumeDendrites += neurons_list[i].dendrites[j].volumeDendrite();
+        }      
+    }
+    
+    double somaFraction      = VolumeSoma / VolumeVoxel;
+    double dendritesFraction = VolumeDendrites/ VolumeVoxel;
+    double ICVF              = somaFraction + dendritesFraction;
+    return make_tuple(ICVF, somaFraction, dendritesFraction);
 }
 
 void ParallelMCSimulation::addObstacleConfigurations()
@@ -829,7 +1218,53 @@ void ParallelMCSimulation::addObstacleConfigurations()
 
         SimErrno::info("Done.\n",cout);
     }
+    if(params.gamma_ax_packing){
 
+
+        string message = "Initialializing Gamma distribution (" + std::to_string(params.gamma_packing_alpha) + ","
+                + std::to_string(params.gamma_packing_beta) + ").\n";
+        SimErrno::info(message,cout);
+
+        message = "Dyn_perc : "
+                + std::to_string(params.dyn_perc) + ", number of dyn_axons : "+to_string(params.gamma_num_obstacles)+".\n";
+        SimErrno::info(message,cout);
+
+        AxonGammaDistribution gamma_dist(params.dyn_perc, params.volume_inc_perc,  params.gamma_num_obstacles,params.gamma_packing_alpha, params.gamma_packing_beta,params.gamma_icvf
+                                             ,params.min_limits, params.max_limits,params.min_obstacle_radii, params.c2, params.tortuous, params.step_lenght);
+
+
+        gamma_dist.displayGammaDistribution();
+        string file = params.output_base_name + "_gamma_distributed_axon_list_.txt";
+        ofstream out(file);
+
+        
+        gamma_dist.createGammaSubstrate(out);
+
+        params.max_limits = gamma_dist.max_limits;
+        params.min_limits = gamma_dist.min_limits;
+
+        if(params.voxels_list.size()<=0){
+            pair<Eigen::Vector3d,Eigen::Vector3d> voxel_(params.min_limits,params.max_limits);
+            params.voxels_list.push_back(voxel_);
+        }
+        else{
+            params.voxels_list[0].first =  params.min_limits;
+            params.voxels_list[0].second = params.max_limits;
+        }
+
+        
+        
+        file = params.output_base_name + "_gamma_distributed_axon_list.txt";
+        ofstream out_(file);
+        gamma_dist.printSubstrate(out_);
+
+        axons_list = gamma_dist.axons;
+
+
+        out.close();
+
+        SimErrno::info("Done.\n",cout);
+    }
 
     if(params.gamma_sph_packing == true){
 
@@ -863,6 +1298,45 @@ void ParallelMCSimulation::addObstacleConfigurations()
         gamma_dist.printSubstrate(out);
 
         this->spheres_list = gamma_dist.spheres;
+
+        //params.cylinders_files.push_back(file);
+        out.close();
+        SimErrno::info("Done.\n",cout);
+    }
+    
+    if(params.neuron_packing == true){
+
+        string message = "Initialializing neuron distribution";
+        SimErrno::info(message,cout);
+        double step_length = sqrt(6.0*params.diffusivity*params.sim_duration/params.num_steps);
+        NeuronDistribution neuron_dist(params.gamma_num_obstacles,params.gamma_icvf
+                                      ,params.min_limits, params.max_limits, step_length);
+
+        auto start = high_resolution_clock::now();
+        neuron_dist.createSubstrate();
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<milliseconds>(stop-start);
+        cout << duration.count() << endl;
+
+        params.max_limits = neuron_dist.max_limits_vx;
+        params.min_limits = neuron_dist.min_limits_vx;
+
+        if(params.voxels_list.size()<=0){
+            pair<Eigen::Vector3d,Eigen::Vector3d> voxel_(params.min_limits,params.max_limits);
+            params.voxels_list.push_back(voxel_);
+        }
+        else{
+            params.voxels_list[0].first =  params.min_limits;
+            params.voxels_list[0].second = params.max_limits;
+        }
+
+        string file = params.output_base_name + "_neurons_list.txt";
+
+        ofstream out(file);
+
+        neuron_dist.printSubstrate(out);
+
+        this -> neurons_list = neuron_dist.neurons;
 
         //params.cylinders_files.push_back(file);
         out.close();

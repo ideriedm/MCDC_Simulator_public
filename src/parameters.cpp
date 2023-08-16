@@ -20,8 +20,11 @@ Parameters::Parameters()
     hex_packing_radius      = 0;
     hex_packing_separation  = 0;
 
-    gamma_cyl_packing = false;
-    gamma_sph_packing = false;
+    gamma_cyl_packing     = false;
+    gamma_dyn_cyl_packing = false;
+    gamma_sph_packing     = false;
+    gamma_ax_packing      = false;
+    neuron_packing        = false;
     gamma_packing_alpha = 0;
     gamma_packing_beta  = 0;
     gamma_num_obstacles = 0;
@@ -359,6 +362,24 @@ void Parameters::readObstacles(ifstream& in)
             cylinders_files.push_back(path);
             num_obstacles++;
         }
+        if(str_dist(tmp,"dyn_cylinders_list") <= 2){
+            string path;
+            in >> path;
+            dyn_cylinders_files.push_back(path);
+            num_obstacles++;
+        }
+        if(str_dist(tmp,"axons_list") <= 2){
+            string path;
+            in >> path;
+            axons_files.push_back(path);
+            num_obstacles++;
+        }
+        if(str_dist(tmp,"dyn_spheres_list") <= 2){
+            string path;
+            in >> path;
+            dyn_spheres_files.push_back(path);
+            num_obstacles++;
+        }
         if(str_dist(tmp,"spheres_list") <= 2){
             string path;
             in >> path;
@@ -369,6 +390,18 @@ void Parameters::readObstacles(ifstream& in)
             string path;
             in >> path;
             cylinders_files.push_back(path);
+            num_obstacles++;
+        }
+        if(str_dist(tmp,"oriented_dyn_cylinders_list") <= 2){
+            string path;
+            in >> path;
+            dyn_cylinders_files.push_back(path);
+            num_obstacles++;
+        }
+        if(str_dist(tmp,"neurons_list") <= 2){
+            string path;
+            in >> path;
+            neurons_files.push_back(path);
             num_obstacles++;
         }
         if(str_dist(tmp,"ply") <= 1){
@@ -395,8 +428,23 @@ void Parameters::readObstacles(ifstream& in)
             readPLYFileListScalePercolation(path);
             num_obstacles++;
         }
+        if(str_dist(tmp,"tortuous") <= 1){
+            string tortuous_str;
+            in >> tortuous_str;
+            if(tortuous_str.compare("false")== 0){
+                tortuous = false;
+            }
+            else if (tortuous_str.compare("true")== 0){
+                tortuous = true;
+            }
+        }
         if(str_dist(tmp,"<cylinder_hex_packing>") <=1){
             this->hex_cyl_packing = true;
+            readHexagonalParams(in);
+            num_obstacles++;
+        }
+        if(str_dist(tmp,"<dyn_cylinder_hex_packing>") <=1){
+            this->hex_dyn_cyl_packing = true;
             readHexagonalParams(in);
             num_obstacles++;
         }
@@ -410,8 +458,23 @@ void Parameters::readObstacles(ifstream& in)
             readGammaParams(in);
             num_obstacles++;
         }
+        if(str_dist(tmp,"<dyn_cylinder_gamma_packing>") <=1){
+            gamma_dyn_cyl_packing = true;
+            readGammaParams(in);
+            num_obstacles++;
+        }
+         if(str_dist(tmp,"<axon_gamma_packing>") <=1){
+            gamma_ax_packing = true;
+            readGammaParams(in);
+            num_obstacles++;
+        }
         if(str_dist(tmp,"<sphere_gamma_packing>") <=1){
             gamma_sph_packing = true;
+            readGammaParams(in);
+            num_obstacles++;
+        }
+        if(str_dist(tmp,"<neuron_packing>") <=1){
+            neuron_packing = true;
             readGammaParams(in);
             num_obstacles++;
         }
@@ -588,7 +651,7 @@ void Parameters::readGammaParams(ifstream &in)
 {
     string tmp="";
 
-    while(str_dist(tmp,"</cylinder_gamma_packing>") > 0 || str_dist(tmp,"</sphere_gamma_packing") > 0 )
+    while(str_dist(tmp,"</neuron_packing>") > 0 || str_dist(tmp,"</cylinder_gamma_packing>") > 0 || str_dist(tmp,"</axon_gamma_packing>") > 0 || str_dist(tmp,"</sphere_gamma_packing") > 0 || str_dist(tmp,"</dyn_cylinder_gamma_packing>") > 0 )
     {
         in >> tmp;
         std::transform(tmp.begin(), tmp.end(), tmp.begin(), ::tolower);
@@ -607,20 +670,41 @@ void Parameters::readGammaParams(ifstream &in)
         else if(str_dist(tmp,"num_cylinders") <= 1){
             in >> gamma_num_obstacles;
         }
+        else if(str_dist(tmp,"num_dyn_cylinders") <= 1){
+            in >> gamma_num_obstacles;
+        }
         else if(str_dist(tmp,"num_spheres") <= 1){
             in >> gamma_num_obstacles;
+        }
+        else if(str_dist(tmp,"num_neurons") <= 1){
+            in >> gamma_num_obstacles;
+        }
+        else if(str_dist(tmp,"min_radius") <= 1){
+            in >> min_obstacle_radii;
+        }
+        else if(str_dist(tmp,"percentage_dynamic_cylinders") <= 1){
+            in >> dyn_perc;
+        }
+        else if(str_dist(tmp,"percentage_dynamic_axons") <= 1){
+            in >> dyn_perc;
+        }
+        else if(str_dist(tmp,"percentage_increase_of_volume") <= 1){
+            in >> volume_inc_perc;
         }
         else if(str_dist(tmp,"icvf") <= 1){
             in >> gamma_icvf;
         }
-        else if(str_dist(tmp,"min_radius") <= 1){
-            in >> min_obstacle_radii;
+        else if(str_dist(tmp,"c2") <= 1){
+            in >> c2;
+        }
+        else if(str_dist(tmp,"num_axons") <= 1){
+            in >> gamma_num_obstacles;
         }
         else if(str_dist(tmp,"") == 0){
             in.clear();
             //in.ignore();
         }
-        else if(str_dist(tmp,"</cylinder_gamma_packing>") ==0 || str_dist(tmp,"</sphere_gamma_packing>") == 0  ){
+        else if(str_dist(tmp,"</neuron_packing>") ==0 || str_dist(tmp,"</cylinder_gamma_packing>") ==0 ||str_dist(tmp,"</axon_gamma_packing>") ==0 || str_dist(tmp,"</sphere_gamma_packing>") == 0 || str_dist(tmp,"</dyn_cylinder_gamma_packing>") == 0 ){
             break;
         }
 

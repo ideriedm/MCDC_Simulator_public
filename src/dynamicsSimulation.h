@@ -20,9 +20,14 @@
 #include "plyobstacle.h"
 #include "voxel.h"
 #include "cylinder.h"
+#include "dynamic_Cylinder.h"
+#include "dynamic_sphere.h"
+#include "axongammadistribution.h"
+#include "Axon.h"
 #include "sentinel.h"
 #include "propagator.h"
 #include "sphere.h"
+#include "Neuron.h"
 
 
 /*! \class DynamicsSimulation
@@ -46,9 +51,17 @@ public:
     sentinels::Sentinel sentinela;                  /*!< Sentinel initialization to encoutner error in the simulation               */
     std::vector <PLYObstacle>* plyObstacles_list;   /*!< pointer to a vector with all the instances of PLYObstacles                 */
     std::vector <Cylinder>* cylinders_list;         /*!< pointer to a vector with all the isntances of "Cylider" obstacles          */
+    std::vector <Dynamic_Cylinder>* dyn_cylinders_list;  /*!< pointer to a vector with all the isntances of "Dynamic Cylider" obstacles          */
     std::vector <Sphere>* spheres_list;           /*!< pointer to a vector with all the isntances of "Spheres" obstacles          */
+    std::vector <Dynamic_Sphere>* dyn_spheres_list;  /*!< pointer to a vector with all the isntances of "Dynamic Sphere" obstacles          */
+    std::vector <Axon>* axons_list;                 /*!< pointer to a vector with all the isntances of "Axon" obstacles          */
+    std::vector <Neuron>* neurons_list;                 /*!< pointer to a vector with all the isntances of "Neuron" obstacles          */
     std::vector<unsigned>  cylinders_deque;         /*!< deque with the indexes of the cylinders (used for optmization)             */
+    std::vector<unsigned>  dyn_cylinders_deque;     /*!< deque with the indexes of the cylinders (used for optmization)             */
     std::vector<unsigned>  spheres_deque;           /*!< deque with the indexes of the spheres (used for optmization)               */
+    std::vector<unsigned>  dyn_spheres_deque;       /*!< deque with the indexes of the dynamic spheres (used for optmization)               */
+    std::vector<unsigned>  axons_deque;           /*!< deque with the indexes of the axons (used for optmization)               */
+    std::vector<unsigned>  neurons_deque;           /*!< deque with the indexes of the axons (used for optmization)               */
     std::vector<std::vector<unsigned>> ply_deque;   /*!< deque with the indexes of the triangles of all ply's (used for opt)        */
     std::vector <Voxel> voxels_list;                /*!< vector with all the voxels to be simulated (if any)                        */
     Propagator propagator;                          /*!< Propagator object to compute and save the particles MSD                    */
@@ -135,8 +148,7 @@ public:
      *         with a defined "inside region" can be considered. Voxel periodicity is not
      *         considered
      */
-    bool isInIntra(Eigen::Vector3d& position, int& cyl_id,  int& ply_id, int& sph_id, double distance_to_be_intra_ply=1e-6);
-
+    bool isInIntra(Eigen::Vector3d& position, int& cyl_id,  int& ply_id, std::vector<int>& sph_id, int& ax_id, int& neuron_id,  int& dendrite_id, int& subbranch_id, double const& distance_to_be_intra_ply=1e-6);
     /*!
      * \brief   Writes to disk the final propagator matrix.
      */
@@ -144,12 +156,17 @@ public:
 
     bool isInsideCylinders(Eigen::Vector3d& position,int& cyl_id,double distance_to_be_inside=1e-6);
 
+    bool isInsideDynCylinders(Eigen::Vector3d& position,int& cyl_id,double distance_to_be_inside=1e-6);
+
     bool isInsidePLY(Eigen::Vector3d& position,int& ply_id,double distance_to_be_inside=1e-6);
 
     bool isInsideSpheres(Eigen::Vector3d &position, int& sph_id,double distance_to_be_inside);
 
+    bool isInsideAxons(Eigen::Vector3d &position, int &ax_id, double distance_to_be_inside, std::vector<int>& col_sphere_ids);
 
-private:    
+    bool isInsideNeurons(Eigen::Vector3d &position, int &neuron_id, int &dendrite_id, int &subbranch_id, std::vector<int> &in_sph_id, double barrier_thickness);
+
+protected:    
     /*! \fn     generateStep
      *  \param  step stores the computed step.
      *  \param  l step size. Can be used to change diffusivity in the medium.
@@ -244,7 +261,7 @@ private:
      *          ot any other flag (as it can be intra, extra, delta position (not implemented yet)).
      * \todo    Add the flags " onlyIntra", "onlyExtra" and "singlePos".
      */
-    inline void iniWalkerPosition();
+    inline void iniWalkerPosition(Eigen::Vector3d& initial_position);
 
     /*!
      * \brief   fill the list of indexes in walkers such that the obstacle is close enough for collision.
@@ -268,13 +285,17 @@ private:
      * \brief   finds an intra celullar 3d position inside the voxel (needs a voxel initialized).
      * \param   intra_pos vector to save the 3d position.
      */
-    inline void getAnIntraCellularPosition(Eigen::Vector3d& intra_pos, int &cyl_ind, int &ply_ind, int &sph_ind);
+    inline void getAnIntraCellularPosition(Eigen::Vector3d& intra_pos, int &cyl_ind, int &ply_ind, std::vector<int>& sph_ind, int& ax_id, int& neuron_id, int &dendrite_ind, int &subbranch_ind);
+    inline void getAnIntraCellularPositionOnEdge(Eigen::Vector3d& intra_pos, int &cyl_ind, int &ply_ind, std::vector<int>& sph_ind, int& ax_id, int& neuron_ind, int &dendrite_ind, int &subbranch_ind, double z);
+    Eigen::Vector3d getAnIntraCellularPosition_dendrite(bool const& random_pos);
+    Eigen::Vector3d getAnIntraCellularPosition_soma(bool const& random_pos);
 
     /*!
      * \brief   finds an extra cellular 3d position inside the voxel (needs a voxel initialized).
      * \param   extra_pos vector to save the 3d position.
      */
     inline void getAnExtraCellularPosition(Eigen::Vector3d& extra_pos);
+    inline void getAnExtraCellularPositionOnEdge(Eigen::Vector3d& extra_pos, double z);
 
     /*!
      * \brief   Auxiliary function to checks if a 3d position is still inside the voxel

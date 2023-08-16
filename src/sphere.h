@@ -60,7 +60,8 @@ public:
      *  \brief Returns the minimum distance from the walker to the Sphere. Used to set the reachable
      *  Spheres that a given walker can reach.
      */
-    double minDistance(Walker &w);
+    double minDistance(Walker const& w) const;
+    double minDistance(Eigen::Vector3d const& pos) const;
 
 private:
 
